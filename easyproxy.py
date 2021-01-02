@@ -20,7 +20,7 @@ def main():
         gevent.spawn(s.run)
 
     if config.http and config.http['enable']:
-        h = httpproxy.HttpProxyServer()
+        h = httpproxy.HTTPProxyServer()
         gevent.spawn(h.run)
 
     gevent.wait()

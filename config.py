@@ -9,8 +9,11 @@ allow_ip = []
 # 用户名和密码
 user = {}
 
-# 是否允许无用户验证, True/False
-is_noauth = False
+# 是必须用户验证, True/False
+must_auth = False
+
+# 网络操作超时时间, 单位秒
+timeout = 10
 
 # socks5代理的地址配置
 socks5 = {
@@ -20,7 +23,7 @@ socks5 = {
 
 # http代理的地址配置
 http = {
-    'enable': False,
+    'enable': True,
     'addr': ('0.0.0.0', 8080)
 }
 

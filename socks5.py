@@ -386,7 +386,10 @@ class Sock5Protocol:
         if cmd == CMD_CONNECT:
             try:
                 addr = (ip, port)
-                sock = socket.create_connection(addr, self.timeout) 
+                #sock = socket.create_connection(addr, self.timeout) 
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+                sock.settimeout(self.timeout)
+                sock.connect(addr)
                 sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
                 log.info('connected %s:%d', addr[0], addr[1])
             except:
@@ -398,7 +401,9 @@ class Sock5Protocol:
             server_info.add_remote(self.key, sock, addr)
         elif cmd == CMD_BIND:
             try:
-                sock = socket.create_server(('0.0.0.0', 0))
+                #sock = socket.create_server(('0.0.0.0', 0))
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+                sock.bind(('0.0.0.0', 0))
                 sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
                 addr = sock.getsockname()
                 log.info('bind %s:%d', addr[0], addr[1])
@@ -456,12 +461,14 @@ class Socks5Server:
     def __init__(self):
         self.config = config.socks5
         self.create_server()
-        #self.info = ServerInfo()
-        #self.proto = Sock5Protocol(self)
 
     def create_server(self):
         log.warning('sock5 server start at %s:%d', self.config['addr'][0], self.config['addr'][1])
-        self.sock = socket.create_server(self.config['addr'])
+        #self.sock = socket.create_server(self.config['addr'])
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(self.config['addr'])
+        self.sock.listen(256)
         self.sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
 
     def run(self):
