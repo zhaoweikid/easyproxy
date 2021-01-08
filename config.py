@@ -7,10 +7,10 @@ logfile = 'stdout'
 allow_ip = []
 
 # 用户名和密码
-user = {}
+user = {'zhaowei':'bobo'}
 
 # 是必须用户验证, True/False
-must_auth = False
+must_auth = True
 
 # 网络操作超时时间, 单位秒
 timeout = 10

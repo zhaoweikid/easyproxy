@@ -20,7 +20,7 @@ METHOD_GSSAPI   = 1
 METHOD_AUTH     = 2
 METHOD_IANA     = 3
 METHOD_RESERVED = 4
-METHOD_NO       = 0xff
+METHOD_NO       = -1
 
 CMD_CONNECT = 1
 CMD_BIND    = 2
@@ -78,6 +78,7 @@ class ServerInfo:
         for nm in ('bind','remote','client'):
             sock = info.get(nm)
             if sock:
+                log.info('close %s', nm)
                 sock.close()
         
         self.conn_info.pop(key) 
@@ -236,6 +237,7 @@ class Sock5Protocol:
         self.conn = self.info['client']
         self.allow_methods = [METHOD_NOAUTH, METHOD_AUTH]
         self.timeout = 30
+        self.is_authed = False
 
         self.conn.settimeout(self.timeout)
 
@@ -271,6 +273,9 @@ class Sock5Protocol:
                     ret = self.conn.recv(1024)
                     if not ret:
                         break
+        except struct.error as e:
+            log.info('struct error:%s', str(e))
+            server_info.close_conn(self.key)
         except:
             log.info(traceback.format_exc())
         finally:
@@ -311,6 +316,8 @@ class Sock5Protocol:
             return RET_ERR
         m = list(m)
         #log.debug('choose method: %d', m[0])
+        if config.must_auth:
+            m = [METHOD_AUTH]
         s = struct.pack('>bb', VERSION, m[0])
         log.debug('shake: %s', repr(s))
         self.conn.sendall(s)
@@ -320,6 +327,7 @@ class Sock5Protocol:
 
     def auth(self):
         data = self.conn.recv(2)
+        log.debug('auth req: %s', repr(data))
         ver, ulen = struct.unpack('>bb', data)
         #log.debug('auth ver:%d ulen:%d', ver, ulen)
         if ver != 1:
@@ -330,7 +338,7 @@ class Sock5Protocol:
             log.debug('auth user len error:%d', ulen)
             self.simple_err(1, 2)
             return RET_ERR
-        user = self.conn.recv(ulen)
+        user = self.conn.recv(ulen).decode('utf-8')
         data = self.conn.recv(1)
         plen, = struct.unpack('>b', data)
         #log.debug('auth plen:%d', plen)
@@ -338,17 +346,17 @@ class Sock5Protocol:
             log.debug('auth password len error:%d', plen)
             self.simple_err(1, 2)
             return RET_ERR
-        password = self.conn.recv(plen)
+        password = self.conn.recv(plen).decode('utf-8')
         log.debug('user:%s password:%s', user, password)
         
-        p = self.user.get(user)
+        p = config.user.get(user)
         if not p or p != password:
             log.debug('auth password error')
             self.simple_err(1, 1)
             return RET_ERR
-        
+        self.is_authed = True 
         s = struct.pack('>bb', 1, 0)
-        log.debug('auth:%s', repr(s))
+        log.debug('auth:%s ok', repr(s))
         self.conn.sendall(s)
         return RET_OK
 
@@ -373,13 +381,18 @@ class Sock5Protocol:
             #log.debug('dlen: %d', dlen)
             d2 = self.conn.recv(dlen+1-4)
             data += d2
-            ip = data[5:5+dlen]
+            ip = data[5:5+dlen].decode('utf-8')
             port, = struct.unpack('>H', data[5+dlen:])
         else:
             ip, port = struct.unpack('>4sH', data[4:])
             ip = socket.inet_ntoa(ip)
         log.debug('ip:%s port:%d', ip, port)
         sock = None
+
+        if config.must_auth and not self.is_authed:
+            log.debug('auth first')
+            self.action_err(ERR_NOT_ALLOW)
+            return RET_ERR
 
         newip = '0.0.0.0'
         newport = 0
@@ -392,6 +405,14 @@ class Sock5Protocol:
                 sock.connect(addr)
                 sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
                 log.info('connected %s:%d', addr[0], addr[1])
+            except socket.timeout as e:
+                log.info('connect timeout %s:%d', addr[0], addr[1])
+                self.action_err(ERR_NET)
+                return RET_ERR
+            except socket.error as e:
+                log.info('connect error %s:%d %s', addr[0], addr[1], str(e))
+                self.action_err(ERR_NET)
+                return RET_ERR
             except:
                 log.info('connect error %s:%d', addr[0], addr[1])
                 log.info(traceback.format_exc())
