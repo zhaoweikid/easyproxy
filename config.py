@@ -1,6 +1,6 @@
 # coding: utf-8
  
-#日志文件
+#日志文件, 文件路径，或者stdout表示输出到标准输出
 logfile = 'stdout'
 
 # 允许连接的ip，为空表示无限制, 每项为一个python正则表达式

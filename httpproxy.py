@@ -291,7 +291,7 @@ class HTTPProxyProtocol:
                     body = self.client.read_body(header)
 
                 if config.must_auth and not header.username:
-                    log.info('is_noauth:%s', config.is_noauth)
+                    log.info('must_auth:%s', config.must_auth)
                     self.auth_note()
                     continue
 
