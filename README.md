@@ -7,3 +7,5 @@ easyproxy是一个简单的python开发的代理服务器，支持socks5代理�
 
 python3 easyproxy.py
 
+
+关于配置，见 config.py
